@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "IptvPlayer"
 include(":app")
+include(":launcher")
