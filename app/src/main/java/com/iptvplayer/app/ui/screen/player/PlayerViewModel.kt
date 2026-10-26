@@ -6,14 +6,25 @@ import com.iptvplayer.app.data.repository.ChannelRepository
 import com.iptvplayer.app.data.repository.EpgRepository
 import com.iptvplayer.app.domain.model.Channel
 import com.iptvplayer.app.domain.model.EpgEvent
+import com.iptvplayer.app.domain.model.nowPlaying
+import com.iptvplayer.app.domain.model.upcoming
 import com.iptvplayer.app.player.PlayerManager
+import com.iptvplayer.app.util.minuteTicker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private const val TUNE_DEBOUNCE_MS = 300L
+private const val RECENT_AFTER_MS  = 5_000L
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
@@ -24,41 +35,77 @@ class PlayerViewModel @Inject constructor(
 
     private var channels: List<Channel> = emptyList()
     private var currentIndex: Int = 0
+    private var initialized = false
 
     private val _currentChannel = MutableStateFlow<Channel?>(null)
     val currentChannel: StateFlow<Channel?> = _currentChannel
 
-    private val _epgNow = MutableStateFlow<EpgEvent?>(null)
-    val epgNow: StateFlow<EpgEvent?> = _epgNow
+    // Derived from the shared EPG cache, so a slow response for a channel we've already
+    // zapped past can never overwrite the banner — it just lands in the cache.
+    private val epgForChannel = combine(_currentChannel, epgRepository.events, minuteTicker()) { channel, events, now ->
+        channel?.let { events[it.id] }.orEmpty() to now
+    }
 
-    private val _epgUpcoming = MutableStateFlow<List<EpgEvent>>(emptyList())
-    val epgUpcoming: StateFlow<List<EpgEvent>> = _epgUpcoming
+    val epgNow: StateFlow<EpgEvent?> = epgForChannel
+        .map { (events, now) -> events.nowPlaying(now) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val epgUpcoming: StateFlow<List<EpgEvent>> = epgForChannel
+        .map { (events, now) -> events.upcoming(now) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _isBannerVisible = MutableStateFlow(false)
     val isBannerVisible: StateFlow<Boolean> = _isBannerVisible
 
     private var bannerJob: Job? = null
+    private var tuneJob: Job? = null
+    private var recentJob: Job? = null
 
     fun init(initialStreamId: Int) {
-        channels = channelRepository.getChannels()
-        val idx = channels.indexOfFirst { it.id == initialStreamId }
-        currentIndex = if (idx >= 0) idx else 0
-        tuneToCurrentIndex()
+        if (initialized) return
+        initialized = true
+        playerManager.setMuted(false)
+        viewModelScope.launch {
+            // Normally a no-op; fetches when restored after process death or opened via deep link
+            channelRepository.ensureLoaded()
+            channels = channelRepository.channels.first()
+            val idx = channels.indexOfFirst { it.id == initialStreamId }
+            currentIndex = if (idx >= 0) idx else 0
+            channels.getOrNull(currentIndex)?.let { channel ->
+                _currentChannel.value = channel
+                revealBanner()
+                tune(channel)
+            }
+        }
     }
 
-    fun channelUp() {
+    fun channelUp() = step(-1)
+
+    fun channelDown() = step(+1)
+
+    private fun step(delta: Int) {
         if (channels.isEmpty()) return
-        currentIndex = (currentIndex - 1 + channels.size) % channels.size
-        tuneToCurrentIndex()
+        currentIndex = (currentIndex + delta + channels.size) % channels.size
+        val channel = channels[currentIndex]
+        // Banner follows every press; the stream only starts once the key stops repeating
+        _currentChannel.value = channel
+        revealBanner()
+        tuneJob?.cancel()
+        tuneJob = viewModelScope.launch {
+            delay(TUNE_DEBOUNCE_MS)
+            tune(channel)
+        }
     }
 
-    fun channelDown() {
-        if (channels.isEmpty()) return
-        currentIndex = (currentIndex + 1) % channels.size
-        tuneToCurrentIndex()
-    }
-
+    /** User asked for the banner — also refresh EPG if the cached programs have run out. */
     fun showBanner() {
+        _currentChannel.value?.let { channel ->
+            viewModelScope.launch { epgRepository.fetchShortEpg(channel.id) }  // no-op while fresh
+        }
+        revealBanner()
+    }
+
+    private fun revealBanner() {
         _isBannerVisible.value = true
         bannerJob?.cancel()
         bannerJob = viewModelScope.launch {
@@ -72,16 +119,14 @@ class PlayerViewModel @Inject constructor(
         _isBannerVisible.value = false
     }
 
-    private fun tuneToCurrentIndex() {
-        val channel = channels.getOrNull(currentIndex) ?: return
-        _currentChannel.value = channel
+    private fun tune(channel: Channel) {
         playerManager.play(channel.streamUrl)
-        showBanner()
-        viewModelScope.launch {
+        viewModelScope.launch { epgRepository.fetchShortEpg(channel.id) }
+        // Only count it as watched once the viewer stays — surfing past shouldn't fill Recents
+        recentJob?.cancel()
+        recentJob = viewModelScope.launch {
+            delay(RECENT_AFTER_MS)
             channelRepository.recordRecent(channel.id)
-            epgRepository.fetchShortEpg(channel.id)
-            _epgNow.value = epgRepository.currentEvent(channel.id)
-            _epgUpcoming.value = epgRepository.upcomingEvents(channel.id)
         }
     }
 }

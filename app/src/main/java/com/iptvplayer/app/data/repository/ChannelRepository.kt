@@ -11,6 +11,8 @@ import com.iptvplayer.app.data.db.entity.RecentEntity
 import com.iptvplayer.app.domain.model.Category
 import com.iptvplayer.app.domain.model.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -25,12 +27,22 @@ class ChannelRepository @Inject constructor(
     private val recentDao: RecentDao,
     private val hiddenCategoryDao: HiddenCategoryDao,
 ) {
-    private var cachedChannels: List<Channel> = emptyList()
-    private var cachedCategories: List<Category> = emptyList()
+    // Every stream from the provider, unfiltered; visibility and favorite flags are applied in [channels]
+    private val allChannels = MutableStateFlow<List<Channel>>(emptyList())
+
+    private val _categories = MutableStateFlow<List<Category>>(emptyList())
+    val categories: StateFlow<List<Category>> = _categories
 
     val favoriteIds: Flow<Set<Int>> = favoriteDao.getAllIds().map { it.toSet() }
+    /** Most recent first, max 50. */
     val recentIds: Flow<List<Int>>  = recentDao.getAllIds()
     val hiddenCategoryIds: Flow<Set<String>> = hiddenCategoryDao.getAllIds().map { it.toSet() }
+
+    /** Channels outside hidden categories, with favorite flags applied. Updates live with Room. */
+    val channels: Flow<List<Channel>> = combine(allChannels, favoriteIds, hiddenCategoryIds) { all, favs, hidden ->
+        all.filter { it.categoryId !in hidden }
+            .map { if (it.id in favs) it.copy(isFavorite = true) else it }
+    }
 
     suspend fun authenticate(serverUrl: String, username: String, password: String): Result<Unit> {
         return runCatching {
@@ -40,44 +52,33 @@ class ChannelRepository @Inject constructor(
         }
     }
 
-    suspend fun fetchChannels(): Result<List<Channel>> {
+    suspend fun fetchChannels(): Result<Unit> {
         return runCatching {
             val creds = credentialsStore.credentials.first() ?: error("No credentials saved")
             val categories = api.getLiveCategories(creds.playerApiUrl(), creds.username, creds.password)
             val streams    = api.getLiveStreams(creds.playerApiUrl(), creds.username, creds.password)
             val catMap     = categories.associate { it.categoryId to it.categoryName }
-            val favIds     = favoriteDao.getAllIds().first()
-            val recentIdList = recentDao.getAllIds().first()
-            val recentSet  = recentIdList.toSet()
-            val hiddenIds  = hiddenCategoryDao.getAllIds().first()
 
-            cachedCategories = categories.map { Category(it.categoryId, it.categoryName) }
-
-            val channels = streams
-                .filter { it.categoryId !in hiddenIds }
-                .mapIndexed { idx, stream ->
-                    Channel(
-                        id           = stream.streamId,
-                        num          = stream.num ?: (idx + 1),
-                        name         = stream.name,
-                        logoUrl      = stream.streamIcon ?: "",
-                        categoryId   = stream.categoryId ?: "",
-                        categoryName = catMap[stream.categoryId] ?: "",
-                        countryCode  = extractCountryCode(stream.name),
-                        epgChannelId = stream.epgChannelId ?: "",
-                        streamUrl    = creds.streamUrl(stream.streamId),
-                        isFavorite   = stream.streamId in favIds,
-                        isRecent     = stream.streamId in recentSet,
-                    )
-                }
-
-            cachedChannels = channels
-            channels
+            _categories.value = categories.map { Category(it.categoryId, it.categoryName) }
+            allChannels.value = streams.mapIndexed { idx, stream ->
+                Channel(
+                    id           = stream.streamId,
+                    num          = stream.num ?: (idx + 1),
+                    name         = stream.name,
+                    logoUrl      = stream.streamIcon ?: "",
+                    categoryId   = stream.categoryId ?: "",
+                    categoryName = catMap[stream.categoryId] ?: "",
+                    countryCode  = extractCountryCode(stream.name),
+                    epgChannelId = stream.epgChannelId ?: "",
+                    streamUrl    = creds.streamUrl(stream.streamId),
+                )
+            }
         }
     }
 
-    fun getChannels(): List<Channel> = cachedChannels
-    fun getCategories(): List<Category> = cachedCategories
+    /** Fetches only if nothing is cached — e.g. Player restored after process death, or a deep link. */
+    suspend fun ensureLoaded(): Result<Unit> =
+        if (allChannels.value.isNotEmpty()) Result.success(Unit) else fetchChannels()
 
     suspend fun toggleFavorite(streamId: Int) {
         if (favoriteDao.exists(streamId) > 0) {

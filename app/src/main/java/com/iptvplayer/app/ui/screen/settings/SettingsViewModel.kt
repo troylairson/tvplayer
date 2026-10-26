@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.iptvplayer.app.data.datastore.CredentialsStore
 import com.iptvplayer.app.data.repository.ChannelRepository
+import com.iptvplayer.app.data.repository.EpgRepository
+import com.iptvplayer.app.player.PlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -24,6 +26,8 @@ sealed class ConnectState {
 class SettingsViewModel @Inject constructor(
     private val credentialsStore: CredentialsStore,
     private val channelRepository: ChannelRepository,
+    private val epgRepository: EpgRepository,
+    private val playerManager: PlayerManager,
 ) : ViewModel() {
 
     // null = still loading from DataStore; false = nothing saved
@@ -38,7 +42,12 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _connectState.value = ConnectState.Loading
             channelRepository.authenticate(serverUrl, username, password)
-                .onSuccess { _connectState.value = ConnectState.Success }
+                .onSuccess {
+                    // Anything cached belongs to the previous login (stream URLs embed credentials)
+                    playerManager.reset()
+                    epgRepository.clearCache()
+                    _connectState.value = ConnectState.Success
+                }
                 .onFailure { t ->
                     _connectState.value = ConnectState.Error(t.message ?: "Connection failed")
                 }

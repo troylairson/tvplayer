@@ -56,28 +56,40 @@ Android TV app (Kotlin + Jetpack Compose for TV) targeting Chromecast HD and Onn
   - 3-hour EPG timeline with current event highlighted and hour tick markers
 - Short EPG fetched from Xtream API per channel, cached in memory (title/description are base64-decoded)
 
-### 🔲 Phase 3 — Channel Guide
+### ✅ Phase 3 — Channel Guide
+*Code complete; needs a build + on-device pass (see "Verify on hardware" below).*
 
-**Prerequisites (from the Phase 1–2 review — do first):**
-- Cancel the in-flight EPG job on each tune (stale EPG can overwrite the banner while surfing)
-- Debounce tuning ~300ms on held Up/Down; only `recordRecent` after ~5s of watching
-- Load channels once in `GuideViewModel.init`, not `LaunchedEffect(Unit)` (currently refetches every return)
-- Expire the short-EPG cache once cached events have ended
-- Cache *all* channels; derive favorites/recents/hidden via `combine` with the Room flows (not baked into `Channel` at fetch time)
-- `PlayerView` `AndroidView`: `onRelease = { it.player = null }`
-- Rework `TuningOverlay` (~32k `drawRect` per frame) into a few pre-generated noise bitmaps
+**Prerequisites from the Phase 1–2 review — done:**
+- OSD EPG is derived from the shared EPG `StateFlow`, so a slow response for a channel already zapped past can't overwrite the banner
+- Held Up/Down: banner follows every press, stream tunes 300ms after the last one; `recordRecent` only after 5s on a channel
+- `GuideViewModel` loads channels in `init` (once per guide entry, not on every return from the Player)
+- Short-EPG cache expires when its events have run out; empty results / gaps retried after 30 min; concurrent fetches de-duplicated
+- `ChannelRepository` caches *all* streams; `channels` = `combine(all, favoriteIds, hiddenCategoryIds)`, so favorites and hidden categories update live
+- `PlayerViewModel` calls `ensureLoaded()` — fixes black screen after process death (and is what the Phase 7 deep link needs)
+- `PlayerView`s release the player on dispose; `TuningOverlay` draws 4 cached 240×135 noise bitmaps (nearest-neighbour scaled, ~12fps)
+- New login resets the player and clears the EPG cache (stream URLs embed credentials)
 
 **Guide:**
-- Guide stays a separate nav destination (`guide`), with Player pushed on top as today; Back from Player returns to it, and the guide is reachable from the Player via a dedicated key (Guide / `KEYCODE_GUIDE`)
-- Five tabs: **All / Favorites / Recent / News / Sports**
-  - Sports tab: live-game marker (pulsing red dot) based on EPG title heuristics
-- `LazyColumn` (Compose Foundation 1.7+, **not** the deprecated `TvLazyColumn`) channel rows: logo, number, name, now-playing show from EPG cache
-- Long-press OK → toggle favorite (Room)
-- Recent tab: last 50 watched channels ordered by time
-- Search: activates on letter key, filters by name + category
-- **Live preview cell** (bottom-right corner): a small `PlayerView` attached to the *same* `PlayerManager` ExoPlayer, showing the last-watched channel. No second decoder instance and no re-buffer — the player just switches surface when the guide opens/closes
-- Category filtering: hidden categories excluded from all tabs
-- Guide → Settings entry point (`onOpenSettings` is not wired to any key yet)
+- Separate nav destination (`guide`) with Player pushed on top; Back or `KEYCODE_GUIDE` in the Player returns to it
+- Tabs **All / Favorites / Recent / News / Sports** (tv-material `TabRow`, switch on focus)
+  - News/Sports: category or channel name matches (`Channel.isNews` / `isSports`)
+  - Live-game marker (pulsing red dot) on sports channels whose current title looks live (`EpgEvent.looksLikeLiveGame`: "A vs B", "A @ B", "LIVE"; excludes highlights/replay/classic…)
+- Compose Foundation `LazyColumn` rows: number, logo, name, now-playing (or category), minutes left, ★ for favorites
+  - Rows fetch short EPG once they've been on screen 300ms (fast scrolling doesn't fire requests)
+- Long-press OK → toggle favorite; in the Favorites tab focus stays at the same position as the row disappears
+- Recent tab: Room order (most recent first, max 50)
+- Search: any letter key starts it; letters/digits/space append, Del erases, Back clears; filters name + category
+- Side panel: focused channel details (now-playing, time, progress, description) above the **live preview cell**
+  - The singleton player on a small `PlayerView`, muted while the guide is shown, unmuted by the Player
+  - Cold start: auto-plays the last-watched channel muted; selecting the previewed channel doesn't re-tune (`PlayerManager.play` keeps the same stream)
+- Hidden categories excluded from all tabs (via `ChannelRepository.channels`)
+- Guide → Settings: header button or Menu key
+
+**Verify on hardware:**
+- `ClickableSurface` long-press fires `onLongClick` on the Onn/Chromecast remotes
+- Surface hand-off between the preview `PlayerView` and the full-screen one (brief black frame is expected; a stuck black surface is not)
+- Scroll smoothness with a large provider (10k+ channels) — row list is rebuilt on `Dispatchers.Default` on every EPG update
+- Letter-key search needs a keyboard/voice remote; plain D-pad remotes can't trigger it (on-screen search entry is a candidate for Phase 7)
 
 ### 🔲 Phase 4 — Category Filtering + EPG Refresh
 - Category manager in Settings: checklist of all categories, toggle hide/show

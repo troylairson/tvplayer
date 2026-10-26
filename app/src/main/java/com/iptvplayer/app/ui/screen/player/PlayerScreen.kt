@@ -55,7 +55,7 @@ fun PlayerScreen(
                 when (event.key) {
                     Key.DirectionUp   -> { viewModel.channelUp();   true }
                     Key.DirectionDown -> { viewModel.channelDown(); true }
-                    Key.Back          -> { onOpenGuide();            true }
+                    Key.Back, Key.Guide -> { onOpenGuide();          true }
                     Key.Menu, Key.DirectionCenter, Key.Enter -> {
                         if (isBannerVisible) viewModel.dismissBanner()
                         else viewModel.showBanner()
@@ -77,6 +77,8 @@ fun PlayerScreen(
                 }
             },
             modifier = Modifier.fillMaxSize(),
+            // Detach so the guide preview can take over the singleton player's surface
+            onRelease = { it.player = null },
         )
 
         // Tuning overlay — visible until first frame is rendered
