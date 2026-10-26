@@ -1,40 +1,48 @@
 package com.iptvplayer.app.ui.screen.player
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
+import android.graphics.Bitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.tv.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Text
+import kotlinx.coroutines.delay
 import kotlin.random.Random
+
+private const val NOISE_W = 240        // ~8px blocks once scaled to 1080p
+private const val NOISE_H = 135
+private const val NOISE_FRAMES = 4
+private const val FRAME_MS = 83L        // ~12fps is plenty for static
 
 @Composable
 fun TuningOverlay(modifier: Modifier = Modifier) {
-    // Tick value drives recomposition at ~12fps — enough for a static effect
-    val transition = rememberInfiniteTransition(label = "static")
-    val tick by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(80, easing = LinearEasing)),
-        label = "tick",
-    )
-
-    val rng = remember { Random(System.currentTimeMillis()) }
+    // A few small noise frames generated once and scaled up with nearest-neighbour filtering:
+    // one drawImage per frame instead of tens of thousands of drawRect calls.
+    val frames = remember { List(NOISE_FRAMES) { noiseFrame(Random(it)) } }
+    var frameIndex by remember { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(FRAME_MS)
+            frameIndex = (frameIndex + 1) % NOISE_FRAMES
+        }
+    }
 
     Box(
         modifier = modifier
@@ -43,24 +51,14 @@ fun TuningOverlay(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // Suppress unused tick — it drives recomposition so the random pixels refresh
-            @Suppress("UNUSED_EXPRESSION") tick
-
-            val blockW = 8f
-            val blockH = 8f
-            val cols = (size.width / blockW).toInt()
-            val rows = (size.height / blockH).toInt()
-
-            repeat(rows) { row ->
-                repeat(cols) { col ->
-                    val grey = rng.nextInt(256)
-                    drawRect(
-                        color = Color(grey, grey, grey, 255),
-                        topLeft = Offset(col * blockW, row * blockH),
-                        size = Size(blockW, blockH),
-                    )
-                }
-            }
+            drawImage(
+                image = frames[frameIndex],
+                srcOffset = IntOffset.Zero,
+                srcSize = IntSize(NOISE_W, NOISE_H),
+                dstOffset = IntOffset.Zero,
+                dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                filterQuality = FilterQuality.None,
+            )
         }
 
         Text(
@@ -73,4 +71,12 @@ fun TuningOverlay(modifier: Modifier = Modifier) {
                 .padding(horizontal = 24.dp, vertical = 10.dp),
         )
     }
+}
+
+private fun noiseFrame(rng: Random): ImageBitmap {
+    val pixels = IntArray(NOISE_W * NOISE_H) {
+        val grey = rng.nextInt(256)
+        (0xFF shl 24) or (grey shl 16) or (grey shl 8) or grey
+    }
+    return Bitmap.createBitmap(pixels, NOISE_W, NOISE_H, Bitmap.Config.ARGB_8888).asImageBitmap()
 }
