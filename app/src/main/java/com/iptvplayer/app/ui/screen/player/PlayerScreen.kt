@@ -107,7 +107,7 @@ fun PlayerScreen(
         // Error state
         if (playerState is com.iptvplayer.app.player.PlayerState.Error) {
             val msg = (playerState as com.iptvplayer.app.player.PlayerState.Error).message
-            androidx.compose.material3.Text(
+            androidx.tv.material3.Text(
                 text = "Playback error: $msg",
                 color = Color.Red,
                 modifier = Modifier.align(Alignment.Center),

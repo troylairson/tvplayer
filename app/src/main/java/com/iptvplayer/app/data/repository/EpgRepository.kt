@@ -4,7 +4,10 @@ import com.iptvplayer.app.data.api.XtreamApi
 import com.iptvplayer.app.data.datastore.CredentialsStore
 import com.iptvplayer.app.domain.model.EpgEvent
 import kotlinx.coroutines.flow.first
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
 import java.time.Instant
+import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,8 +33,8 @@ class EpgRepository @Inject constructor(
             response.listings.map { listing ->
                 EpgEvent(
                     channelId   = listing.channelId,
-                    title       = decodeHtml(listing.title),
-                    description = decodeHtml(listing.description),
+                    title       = decodeText(listing.title),
+                    description = decodeText(listing.description),
                     start       = Instant.ofEpochSecond(listing.startTimestamp),
                     end         = Instant.ofEpochSecond(listing.stopTimestamp),
                 )
@@ -54,6 +57,23 @@ class EpgRepository @Inject constructor(
 
     fun clearCache() = cache.clear()
 
+    private fun decodeText(input: String): String = decodeHtml(decodeBase64OrNull(input) ?: input)
+
+    // Xtream returns EPG title/description base64-encoded; some panels send plain text,
+    // so only accept the decode if it yields clean UTF-8.
+    private fun decodeBase64OrNull(input: String): String? {
+        if (!BASE64_PATTERN.matches(input)) return null
+        val decoded = try {
+            val bytes = Base64.getDecoder().decode(input)
+            Charsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString()
+        } catch (e: IllegalArgumentException) {
+            return null
+        } catch (e: CharacterCodingException) {
+            return null
+        }
+        return decoded.takeIf { text -> text.none { it.isISOControl() && it !in "\n\r\t" } }
+    }
+
     private fun decodeHtml(input: String): String =
         input.replace("&amp;", "&")
             .replace("&lt;", "<")
@@ -61,4 +81,8 @@ class EpgRepository @Inject constructor(
             .replace("&quot;", "\"")
             .replace("&#39;", "'")
             .replace("&nbsp;", " ")
+
+    private companion object {
+        val BASE64_PATTERN = Regex("^[A-Za-z0-9+/]+={0,2}$")
+    }
 }

@@ -59,7 +59,6 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
 
     // Compose TV
-    implementation(libs.tv.foundation)
     implementation(libs.tv.material)
 
     // Navigation

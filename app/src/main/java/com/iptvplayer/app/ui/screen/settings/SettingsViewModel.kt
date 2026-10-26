@@ -26,21 +26,19 @@ class SettingsViewModel @Inject constructor(
     private val channelRepository: ChannelRepository,
 ) : ViewModel() {
 
+    // null = still loading from DataStore; false = nothing saved
     val hasCredentials: StateFlow<Boolean?> = credentialsStore.credentials
-        .map { it?.isComplete }
+        .map { it?.isComplete == true }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _connectState = MutableStateFlow<ConnectState>(ConnectState.Idle)
     val connectState: StateFlow<ConnectState> = _connectState
 
-    fun connect(serverUrl: String, username: String, password: String, onSuccess: () -> Unit) {
+    fun connect(serverUrl: String, username: String, password: String) {
         viewModelScope.launch {
             _connectState.value = ConnectState.Loading
             channelRepository.authenticate(serverUrl, username, password)
-                .onSuccess {
-                    _connectState.value = ConnectState.Success
-                    onSuccess()
-                }
+                .onSuccess { _connectState.value = ConnectState.Success }
                 .onFailure { t ->
                     _connectState.value = ConnectState.Error(t.message ?: "Connection failed")
                 }

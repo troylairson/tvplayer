@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import androidx.tv.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +36,7 @@ fun SettingsScreen(
     var username  by remember { mutableStateOf("") }
     var password  by remember { mutableStateOf("") }
 
+    // Sole navigation trigger on success
     LaunchedEffect(connectState) {
         if (connectState is ConnectState.Success) onConnected()
     }
@@ -112,7 +113,7 @@ fun SettingsScreen(
             LaunchedEffect(Unit) { buttonFocus.requestFocus() }
 
             Button(
-                onClick = { viewModel.connect(serverUrl, username, password, onConnected) },
+                onClick = { viewModel.connect(serverUrl, username, password) },
                 enabled = connectState !is ConnectState.Loading,
                 modifier = Modifier
                     .focusRequester(buttonFocus)

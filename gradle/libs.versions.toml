@@ -5,7 +5,7 @@ ksp = "2.0.21-1.0.28"
 coreKtx = "1.13.1"
 activityCompose = "1.9.2"
 composeBom = "2024.09.03"
-composeTv = "1.0.0-beta01"
+tvMaterial = "1.0.0-beta01"
 media3 = "1.4.1"
 hilt = "2.52"
 hiltNav = "1.2.0"
@@ -35,8 +35,7 @@ compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 compose-animation = { group = "androidx.compose.animation", name = "animation" }
 
 # Compose TV
-tv-foundation = { group = "androidx.tv", name = "tv-foundation", version.ref = "composeTv" }
-tv-material = { group = "androidx.tv", name = "tv-material", version.ref = "composeTv" }
+tv-material = { group = "androidx.tv", name = "tv-material", version.ref = "tvMaterial" }
 
 # Navigation
 nav-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navCompose" }
