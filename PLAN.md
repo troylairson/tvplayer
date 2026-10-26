@@ -9,7 +9,7 @@ Android TV app (Kotlin + Jetpack Compose for TV) targeting Chromecast HD and Onn
 | Layer | Library |
 |---|---|
 | Language | Kotlin 2.0 |
-| UI | Jetpack Compose for TV (`androidx.tv`) |
+| UI | Jetpack Compose for TV (`androidx.tv:tv-material`) + Compose Foundation lazy lists |
 | Video | Media3 / ExoPlayer |
 | DI | Hilt |
 | Database | Room |
@@ -33,7 +33,7 @@ Android TV app (Kotlin + Jetpack Compose for TV) targeting Chromecast HD and Onn
 
 ### ✅ Phase 1 — Auth + Channel List
 - Xtream Codes API client (Retrofit + Moshi)
-- Encrypted credential storage (DataStore)
+- Credential storage (DataStore, plain text, `allowBackup=false`) — encryption deferred to Phase 7
 - Room DB: favorites, recents, hidden categories
 - Settings screen: enter credentials, test connection, navigate to guide on success
 - Guide screen stub: shows channel count + plays first channel
@@ -43,26 +43,41 @@ Android TV app (Kotlin + Jetpack Compose for TV) targeting Chromecast HD and Onn
 ### ✅ Phase 2 — Full-Screen Playback + D-pad + OSD
 - `PlayerManager` — singleton ExoPlayer with:
   - Low-latency buffer config (1.5s to playback, ~2s tune time)
-  - Amlogic tunnel mode (`VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS`)
+  - Frame-rate switching only when seamless (`VIDEO_CHANGE_FRAME_RATE_STRATEGY_ONLY_IF_SEAMLESS`) — this is *not* tunneling; tunneling (`setTunnelingEnabled`) is untested and off
   - Decoder fallback enabled
+  - Streams loaded through OkHttp (`OkHttpDataSource`) so cross-host / http↔https redirects work
+  - `BehindLiveWindowException` → automatic rejoin at the live edge
+  - Stopped in `MainActivity.onStop`, resumed at the live edge in `onStart` (no audio after Home)
 - **D-pad controls**: Up/Down = channel change, OK/Menu = toggle OSD, Back = guide
 - **Tuning animation** — animated pixel static on `Canvas`, disappears on first frame rendered
 - **OSD banner** (slides from top, auto-dismisses after 5s):
   - Channel logo (Coil), number, name, country flag emoji
   - Now-playing show title + `LinearProgressIndicator` + minutes remaining
   - 3-hour EPG timeline with current event highlighted and hour tick markers
-- Short EPG fetched from Xtream API per channel, cached in memory
+- Short EPG fetched from Xtream API per channel, cached in memory (title/description are base64-decoded)
 
 ### 🔲 Phase 3 — Channel Guide
-- Full-screen guide overlay
+
+**Prerequisites (from the Phase 1–2 review — do first):**
+- Cancel the in-flight EPG job on each tune (stale EPG can overwrite the banner while surfing)
+- Debounce tuning ~300ms on held Up/Down; only `recordRecent` after ~5s of watching
+- Load channels once in `GuideViewModel.init`, not `LaunchedEffect(Unit)` (currently refetches every return)
+- Expire the short-EPG cache once cached events have ended
+- Cache *all* channels; derive favorites/recents/hidden via `combine` with the Room flows (not baked into `Channel` at fetch time)
+- `PlayerView` `AndroidView`: `onRelease = { it.player = null }`
+- Rework `TuningOverlay` (~32k `drawRect` per frame) into a few pre-generated noise bitmaps
+
+**Guide:**
+- Guide stays a separate nav destination (`guide`), with Player pushed on top as today; Back from Player returns to it, and the guide is reachable from the Player via a dedicated key (Guide / `KEYCODE_GUIDE`)
 - Five tabs: **All / Favorites / Recent / News / Sports**
   - Sports tab: live-game marker (pulsing red dot) based on EPG title heuristics
-- `TvLazyColumn` channel rows: logo, number, name, now-playing show from EPG cache
+- `LazyColumn` (Compose Foundation 1.7+, **not** the deprecated `TvLazyColumn`) channel rows: logo, number, name, now-playing show from EPG cache
 - Long-press OK → toggle favorite (Room)
 - Recent tab: last 50 watched channels ordered by time
 - Search: activates on letter key, filters by name + category
-- **Live preview cell**: muted second ExoPlayer instance (bottom-right corner) showing last-watched channel while browsing guide
+- **Live preview cell** (bottom-right corner): a small `PlayerView` attached to the *same* `PlayerManager` ExoPlayer, showing the last-watched channel. No second decoder instance and no re-buffer — the player just switches surface when the guide opens/closes
 - Category filtering: hidden categories excluded from all tabs
+- Guide → Settings entry point (`onOpenSettings` is not wired to any key yet)
 
 ### 🔲 Phase 4 — Category Filtering + EPG Refresh
 - Category manager in Settings: checklist of all categories, toggle hide/show
@@ -89,8 +104,10 @@ Android TV app (Kotlin + Jetpack Compose for TV) targeting Chromecast HD and Onn
 ### 🔲 Phase 7 — Polish + Launcher Integration
 - Channel logo retry interceptor (Coil) — up to 3 retries with 500ms delay, initials fallback
 - Country flag assets bundled locally (no network fetch)
-- Sports live-game marker: pulsing red dot composable
-- Deep-link entry point: `iptv://play?stream_id=X` intent filter on `MainActivity` so a future launcher can tune directly to a channel
+- Credential encryption (Keystore-wrapped key; `security-crypto` is deprecated — drop that dependency)
+- Login: check `user_info.auth`/`status` and make auth models nullable so bad credentials give a clear error; normalize server URL scheme; URL-encode user/pass in stream URLs
+- HLS → MPEG-TS fallback (`.ts`) when `.m3u8` fails
+- Deep-link entry point: `iptv://play?stream_id=X` intent filter on `MainActivity` so a future launcher can tune directly to a channel (PlayerViewModel must load channels itself when the in-memory cache is empty — same fix covers restore after process death)
 - ProGuard rules, APK size check, sideload smoke test on physical hardware
 
 ---
@@ -102,8 +119,9 @@ One `MainActivity` hosts the entire nav graph. TV remote key events (`onKeyDown`
 
 ### PlayerManager as Application-Scoped Singleton
 The primary ExoPlayer lives in `PlayerManager` (`@Singleton` via Hilt). This means:
-- Buffer is preserved when the guide overlay opens — no re-buffering on dismiss
-- The muted guide preview uses the same video surface, not a second decode
+- Buffer is preserved when the guide opens — no re-buffering on dismiss
+- The guide preview is the same player on a different (smaller) surface, not a second decode
+- Because it outlives screens, `MainActivity` must stop it in `onStop` and resume in `onStart`
 - Config changes (rare on TV) don't destroy the player
 
 Multi-view players are `@ActivityRetainedScoped` — released when leaving multi-view.
@@ -126,8 +144,12 @@ Built in `ChannelRepository`, not in the player. Player receives a completed URI
 
 - **`PlayerView` must be `AndroidView`**, not the experimental Compose shim — surface lifecycle races cause black screens
 - **Compose TV focus is aggressive** — in multi-view, disable it with `Modifier.focusProperties { canFocus = false }` and handle D-pad manually
-- **Chromecast HD: 2 hardware decode sessions max** — guide preview + main player = 2 slots consumed; multi-view 4-up needs software fallback for cells 3 & 4
+- **Chromecast HD: 2 hardware decode sessions max** — the guide preview reuses the main player (1 slot); multi-view 4-up needs software fallback for cells 3 & 4
 - **D-pad Up/Down intercepted by system launcher** — `PlayerScreen` must consume these keys and return `true`; use `Modifier.focusable()` + `FocusRequester.requestFocus()` on the root `Box`
 - **OSD banner auto-dismiss** — use a `Job` in the ViewModel, not `LaunchedEffect`, to avoid recomposition jank on every channel change
 - **CEA-608 on Amlogic** — firmware may intercept 608 at the HAL level; test on physical hardware early
+- **Cleartext HTTP** — most Xtream servers are `http://`; `usesCleartextTraffic="true"` is required at targetSdk 28+
+- **Xtream short EPG is base64** — `title`/`description` must be decoded (some panels send plain text; decoder falls back)
+- **Two Material libraries** — use `androidx.tv.material3.Text`; mobile M3 components (`OutlinedTextField`, progress indicators) read their own theme, so `IptvTheme` also provides a dark mobile `MaterialTheme`
+- **ExoPlayer error → STATE_IDLE** — `onPlaybackStateChanged(IDLE)` fires right after `onPlayerError`; don't let it overwrite the error state
 - **HLS live stream buffering** — default Media3 `DefaultLoadControl` buffers 50s ahead (10-15s tune delay); override to 2s min / 10s max

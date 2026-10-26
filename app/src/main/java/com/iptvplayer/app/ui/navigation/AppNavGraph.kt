@@ -1,8 +1,14 @@
 package com.iptvplayer.app.ui.navigation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -30,15 +36,25 @@ fun AppNavGraph() {
     val settingsVm: SettingsViewModel = hiltViewModel()
     val hasCredentials by settingsVm.hasCredentials.collectAsState()
 
-    val startDestination = if (hasCredentials == true) Screen.Guide.route else Screen.Settings.route
+    // Wait for DataStore before building the graph: starting on Settings and switching once
+    // credentials load would rebuild the graph and flash the Settings screen.
+    val credentialsLoaded = hasCredentials ?: run {
+        Box(Modifier.fillMaxSize().background(Color.Black))
+        return
+    }
+    // Fixed for the graph's lifetime — saving credentials later must not reset the back stack
+    val startDestination = remember {
+        if (credentialsLoaded) Screen.Guide.route else Screen.Settings.route
+    }
 
     NavHost(navController = navController, startDestination = startDestination) {
 
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onConnected = {
+                    // Clear everything (Settings may have been opened from the Guide) so Back exits
                     navController.navigate(Screen.Guide.route) {
-                        popUpTo(Screen.Settings.route) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
                 }
             )
