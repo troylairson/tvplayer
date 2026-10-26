@@ -1,0 +1,88 @@
+name: Build APKs
+
+# Every push and PR: compile both apps and run unit tests.
+# Pushes to main also publish a GitHub Release, so the newest APKs are always at
+#   https://github.com/troylairson/tvplayer/releases/latest/download/iptv-player.apk
+#   https://github.com/troylairson/tvplayer/releases/latest/download/sunset.apk
+# (type either into Downloader on the TV).
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create releases
+    env:
+      SIGNING_STORE_FILE: ${{ github.workspace }}/signing.keystore
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Optional: a fixed signing key from repo secrets (see scripts/create-signing-key.sh).
+      # Without it builds still work, but each APK is signed with a throwaway key and
+      # updating on the TV needs an uninstall first.
+      - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > "$SIGNING_STORE_FILE"
+            echo "Signing with the shared key"
+          else
+            echo "::warning::SIGNING_KEYSTORE_BASE64 secret not set; APKs use a throwaway debug key"
+          fi
+
+      # Debug builds for now: no R8 shrinking to trip over while the apps are being shaken out
+      - name: Build and test
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleDebug :launcher:assembleDebug :app:testDebugUnitTest :launcher:testDebugUnitTest --stacktrace
+
+      - name: Collect APKs
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk dist/iptv-player.apk
+          cp launcher/build/outputs/apk/debug/launcher-debug.apk dist/sunset.apk
+          rm -f "$SIGNING_STORE_FILE"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apks-${{ github.run_number }}
+          path: dist/*.apk
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.run_number }}
+          path: "**/build/reports/tests/"
+          if-no-files-found: ignore
+
+      - name: Publish release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" dist/iptv-player.apk dist/sunset.apk \
+            --target "${{ github.sha }}" \
+            --title "Build ${{ github.run_number }}" \
+            --notes "Built from ${{ github.sha }}. Version 1.0.${{ github.run_number }} of IPTV Player and Sunset." \
+            --latest
