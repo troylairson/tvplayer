@@ -32,6 +32,7 @@ private enum class HomeItem { LIVE_TV, NOSTALGIA, MOVIES, MUSIC, APPS, SPA, LIGH
 
 @Composable
 fun HomeScreen(
+    isDefaultHome: Boolean,
     onOpenSpa: () -> Unit,
     onOpenLights: () -> Unit,
     onOpenApps: () -> Unit,
@@ -42,8 +43,8 @@ fun HomeScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
 
-    // We're the home screen: Back has nowhere to go
-    BackHandler {}
+    // As the device's home screen Back has nowhere to go; as a regular app it exits as usual
+    BackHandler(enabled = isDefaultHome) {}
 
     // Restore focus to the last tile used when coming back from a sub-screen
     var lastFocused by rememberSaveable { mutableStateOf(HomeItem.LIVE_TV) }

@@ -30,9 +30,12 @@ private object Routes {
     fun picker(tile: AppTile) = "picker/${tile.name}"
 }
 
-/** [homePresses] changes each time the Home button is pressed while the launcher is already showing. */
+/**
+ * [homePresses] changes each time the Home button is pressed while the launcher is already showing.
+ * [isDefaultHome]: Sunset is the device's home screen, so Back on Home must not close it.
+ */
 @Composable
-fun LauncherNavGraph(homePresses: Int) {
+fun LauncherNavGraph(homePresses: Int, isDefaultHome: Boolean) {
     val navController = rememberNavController()
 
     LaunchedEffect(homePresses) {
@@ -43,6 +46,7 @@ fun LauncherNavGraph(homePresses: Int) {
         NavHost(navController = navController, startDestination = Routes.HOME) {
             composable(Routes.HOME) {
                 HomeScreen(
+                    isDefaultHome = isDefaultHome,
                     onOpenSpa = { navController.navigate(Routes.SPA) },
                     onOpenLights = { navController.navigate(Routes.LIGHTS) },
                     onOpenApps = { navController.navigate(Routes.APPS) },

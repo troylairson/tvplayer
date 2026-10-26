@@ -23,7 +23,7 @@
         android:allowBackup="false"
         android:banner="@drawable/launcher_banner"
         android:icon="@mipmap/ic_launcher"
-        android:label="Home"
+        android:label="Sunset"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.Launcher">
@@ -35,16 +35,16 @@
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize"
             android:exported="true"
             android:launchMode="singleTask"
-            android:stateNotNeeded="true"
-            android:clearTaskOnLaunch="true"
-            android:excludeFromRecents="true"
             android:windowSoftInputMode="adjustNothing">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.HOME" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-            <!-- Also listed in the app drawer, so it can be opened before it's the default home -->
+            <!--
+              Runs as a regular TV app for now. To make it the home screen later, add:
+                <intent-filter>
+                    <action android:name="android.intent.action.MAIN" />
+                    <category android:name="android.intent.category.HOME" />
+                    <category android:name="android.intent.category.DEFAULT" />
+                </intent-filter>
+              (see LAUNCHER.md, "Making it the default home screen")
+            -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />

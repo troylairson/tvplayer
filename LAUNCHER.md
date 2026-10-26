@@ -1,6 +1,6 @@
-# TV Launcher — Build Plan
+# Sunset — TV Launcher Build Plan
 
-A custom Google TV home screen (`:launcher` module, `com.tvplayer.launcher`) modeled on the design mockups: illustrated tiles, a header clock + weather, and a Spa screen backed by Home Assistant. Lives in this repo beside the IPTV player (`:app`), which the **Live TV** tile launches.
+**Sunset** is a custom Google TV home screen (`:launcher` module, `com.tvplayer.launcher`) modeled on the design mockups: illustrated tiles, a header clock + weather, and a Spa screen backed by Home Assistant. Lives in this repo beside the IPTV player (`:app`), which the **Live TV** tile launches.
 
 Same stack as the player: Kotlin, Compose for TV (`tv-material`), Hilt, DataStore, Retrofit/OkHttp/Moshi.
 
@@ -10,7 +10,7 @@ Same stack as the player: Kotlin, Compose for TV (`tv-material`), Hilt, DataStor
 
 | Screen | Reached by | Notes |
 |---|---|---|
-| **Home** | Home button | Live TV · NostalgiaTV · Movies (top row); Music · Apps · Spa (bottom row); Lights + Settings tray |
+| **Home** | Opening Sunset from the apps row | Live TV · NostalgiaTV · Movies (top row); Music · Apps · Spa (bottom row); Lights + Settings tray |
 | **Spa** | Spa tile | Water temp + status, target temp (focus the card, ◀ ▶ to adjust), Jets 1/2, Lights, Waterfall, Start/Stop jets |
 | **Lights** | 💡 tray button | Every `light.*` entity in Home Assistant as a toggle, plus All off |
 | **Apps** | Apps tile | All installed TV apps (banners), OK launches |
@@ -21,7 +21,7 @@ Same stack as the player: Kotlin, Compose for TV (`tv-material`), Hilt, DataStor
 
 Tiles that open apps (all configurable): **Live TV** → `com.iptvplayer.app` by default; **NostalgiaTV**, **Movies**, **Music** → unset until chosen (OK on an unset tile opens the picker).
 
-The Pool tile and the room-service / camera / fan tray icons from the mockup are intentionally left out.
+The Pool tile, the room-service / camera / fan tray icons and the palm logo from the mockup are intentionally left out; the header logo and app banner are a sunset.
 
 ## Home Assistant
 
@@ -40,9 +40,14 @@ The Pool tile and the room-service / camera / fan tray icons from the mockup are
 - Typing a ~180-character token with a remote is painful: open the field, then paste from the **Google TV app on your phone** (its remote has a keyboard that accepts paste).
 - `usesCleartextTraffic` is on so `http://homeassistant.local:8123` works.
 
-## Making it the default home screen
+## Running as a regular app (current)
 
-Google TV has no "choose home app" setting, so the stock launcher must be disabled over adb (reversible):
+Sunset does **not** register as a home screen yet. It shows in the apps row like any other app, Back on its home screen exits, and the stock Google TV home is untouched. This avoids Android prompting "choose your home app" after install.
+
+## Making it the default home screen (later)
+
+1. Add the `HOME` intent filter back to `MainActivity` (it's in a comment in `AndroidManifest.xml`).
+2. Google TV has no "choose home app" setting, so the stock launcher must be disabled over adb (reversible):
 
 ```sh
 adb install launcher/build/outputs/apk/debug/launcher-debug.apk
@@ -50,17 +55,21 @@ adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx   # Goog
 # undo: adb shell pm enable com.google.android.apps.tv.launcherx
 ```
 
-Test it first by opening **Home** from the app list (it also registers as a regular TV app). On some builds `com.google.android.tungsten.setupwraith` relaunches the stock home after reboot and must be disabled too — check on the actual Onn/Chromecast before relying on it.
+Once Sunset is the default home, Back on its home screen is swallowed automatically (checked on every resume). On some builds `com.google.android.tungsten.setupwraith` relaunches the stock home after reboot and must be disabled too — check on the actual Onn/Chromecast before relying on it.
 
 ## Phases
 
-### ✅ L1 — Home, Spa, Lights, Apps, settings (this change)
+### ✅ L1 — Home, Spa, Lights, Apps, settings — as a regular app
 Code complete; **not yet built** (dev sandbox can't reach Google Maven). Pure logic (spa status, weather mapping, URL normalization) has JVM unit tests.
 
 ### 🔲 L2 — On-device pass
-- Build both APKs, install, confirm tile focus/scale, art proportions at 1080p, long-press OK on tiles
-- Disable stock launcher; check Home button returns to the launcher (and to its home screen from sub-screens)
+- Build both APKs, install, open Sunset from the apps row; confirm tile focus/scale, art proportions at 1080p, long-press OK on tiles
+- Back from Home exits to Google TV
 - Wire real HA entity ids; confirm optimistic toggles settle correctly with the 5s poll
+
+### 🔲 L2.5 — Home screen replacement
+- Re-add the `HOME` intent filter, disable the stock launcher (see above)
+- Check the Home button returns to Sunset (and to its home screen from sub-screens), and Back on Home stays put
 
 ### 🔲 L3 — Live updates + polish
 - Home Assistant WebSocket API (`subscribe_entities`) instead of polling — instant state changes, less traffic
@@ -75,4 +84,4 @@ Code complete; **not yet built** (dev sandbox can't reach Google Maven). Pure lo
 
 - **Package visibility (API 30+)** — the manifest `<queries>` for `LEANBACK_LAUNCHER`/`LAUNCHER` intents is what lets the launcher see and start other apps
 - **`singleTask` + Home** — pressing Home while the launcher is in front arrives as `onNewIntent(CATEGORY_HOME)`; the nav graph pops back to Home
-- **Back on Home is swallowed** — a launcher must never finish itself
+- **Back on Home** — swallowed only while Sunset is the default home (a launcher must never finish itself); as a regular app it exits

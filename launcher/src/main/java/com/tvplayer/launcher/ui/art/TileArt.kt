@@ -228,19 +228,18 @@ fun SpaSteamArt(
     }
 }
 
-/** Header logo: a small palm. */
+/** Header logo: a sun setting behind two water lines. */
 @Composable
-fun PalmLogo(modifier: Modifier = Modifier, color: Color = Cream) = Canvas(modifier) {
+fun SunsetLogo(modifier: Modifier = Modifier) = Canvas(modifier) {
     val w = size.width
     val h = size.height
-    val crown = Offset(w * 0.5f, h * 0.38f)
-    val stroke = w * 0.07f
-    drawLine(color, crown, Offset(w * 0.5f, h), strokeWidth = stroke, cap = StrokeCap.Round)
-    listOf(-165f, -135f, -105f, -75f, -45f, -15f).forEach { angle ->
-        rotate(angle, pivot = crown) {
-            drawLine(color, crown, Offset(crown.x + w * 0.42f, crown.y), strokeWidth = stroke, cap = StrokeCap.Round)
-        }
+    val horizon = h * 0.58f
+    val stroke = h * 0.09f
+    clipRect(0f, 0f, w, horizon) {
+        drawCircle(Sunset, radius = w * 0.36f, center = Offset(w * 0.5f, horizon))
     }
+    drawLine(Lagoon, Offset(w * 0.06f, horizon + stroke * 1.4f), Offset(w * 0.94f, horizon + stroke * 1.4f), strokeWidth = stroke, cap = StrokeCap.Round)
+    drawLine(Lagoon, Offset(w * 0.24f, horizon + stroke * 3.2f), Offset(w * 0.76f, horizon + stroke * 3.2f), strokeWidth = stroke, cap = StrokeCap.Round)
 }
 
 /** A tapered leaf rotated [angle]° (0 = pointing right, clockwise) about [origin]. */

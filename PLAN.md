@@ -1,6 +1,6 @@
 # IPTV Player — Build Plan
 
-> **Status:** paused after Phase 3 (pending a build + on-device pass) while the TV launcher is built — see [LAUNCHER.md](LAUNCHER.md). The launcher's Live TV tile opens this app.
+> **Status:** paused after Phase 3 (pending a build + on-device pass) while the Sunset TV launcher is built — see [LAUNCHER.md](LAUNCHER.md). Sunset's Live TV tile opens this app.
 
 Android TV app (Kotlin + Jetpack Compose for TV) targeting Chromecast HD and Onn Google TV boxes. Sideloaded APK, no Play Store. Designed to later embed as one tile inside a custom Android TV launcher.
 

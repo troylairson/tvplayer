@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#1F4A40" />
-</shape>
+<!-- 320×180 TV banner: sun setting over three bands of water on the Live TV green -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="#1F4A40" android:pathData="M0,0h320v180h-320z" />
+    <!-- Sun: half disc resting on the horizon at y=100 -->
+    <path android:fillColor="#E0663E" android:pathData="M110,100 A50,50 0 0,1 210,100 Z" />
+    <path android:fillColor="#2E8A8C" android:pathData="M0,100h320v27h-320z" />
+    <path android:fillColor="#26797B" android:pathData="M0,127h320v27h-320z" />
+    <path android:fillColor="#1E5A5C" android:pathData="M0,154h320v26h-320z" />
+</vector>

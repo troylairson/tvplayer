@@ -24,11 +24,11 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.tvplayer.launcher.domain.WeatherKind
-import com.tvplayer.launcher.ui.art.PalmLogo
+import com.tvplayer.launcher.ui.art.SunsetLogo
 import com.tvplayer.launcher.ui.theme.Cream
 
 /**
- * Top bar shared by every screen: palm logo (home) or back chevron + title on the left,
+ * Top bar shared by every screen: sunset logo (home) or back chevron + title on the left,
  * clock and Home Assistant weather on the right.
  */
 @Composable
@@ -46,7 +46,7 @@ fun Header(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (title == null) {
-            PalmLogo(Modifier.size(28.dp))
+            SunsetLogo(Modifier.size(32.dp))
         } else {
             // Not focusable: Back on the remote does this
             Icon(
