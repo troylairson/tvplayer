@@ -40,6 +40,17 @@ The Pool tile, the room-service / camera / fan tray icons and the palm logo from
 - Typing a ~180-character token with a remote is painful: open the field, then paste from the **Google TV app on your phone** (its remote has a keyboard that accepts paste).
 - `usesCleartextTraffic` is on so `http://homeassistant.local:8123` works.
 
+## Installing on the TV
+
+GitHub Actions (`.github/workflows/build.yml`) builds both apps and runs the unit tests on every push. Each push to `main` publishes a release, so the newest APKs are always at:
+
+- Sunset: `https://github.com/troylairson/tvplayer/releases/latest/download/sunset.apk`
+- IPTV Player: `https://github.com/troylairson/tvplayer/releases/latest/download/iptv-player.apk`
+
+Type one into **Downloader** on the TV and install. To update later, download the same link again.
+
+**One-time signing setup:** run `scripts/create-signing-key.sh` on a computer and add the four secrets it prints under the repo's *Settings → Secrets and variables → Actions*. Keep the `.keystore` file it creates. Until the secrets exist, each build is signed with a throwaway key, so updating means uninstalling first (which clears the app's settings).
+
 ## Running as a regular app (current)
 
 Sunset does **not** register as a home screen yet. It shows in the apps row like any other app, Back on its home screen exits, and the stock Google TV home is untouched. This avoids Android prompting "choose your home app" after install.

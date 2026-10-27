@@ -246,8 +246,8 @@ fun SunsetLogo(modifier: Modifier = Modifier) = Canvas(modifier) {
 private fun DrawScope.palmLeaf(origin: Offset, length: Float, width: Float, angle: Float, color: Color) {
     val leaf = Path().apply {
         moveTo(0f, 0f)
-        quadraticBezierTo(length * 0.5f, -width, length, 0f)
-        quadraticBezierTo(length * 0.5f, width, 0f, 0f)
+        quadraticTo(length * 0.5f, -width, length, 0f)
+        quadraticTo(length * 0.5f, width, 0f, 0f)
         close()
     }
     translate(origin.x, origin.y) {
