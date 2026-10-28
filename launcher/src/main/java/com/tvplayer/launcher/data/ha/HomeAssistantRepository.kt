@@ -72,17 +72,17 @@ class HomeAssistantRepository @Inject constructor(
             }
     }
 
-    /** Works for switch, light, fan, input_boolean… via the generic `homeassistant` domain. */
-    fun setOn(entityIds: List<String>, on: Boolean) {
-        val ids = entityIds.filter { it.isNotBlank() }
-        if (ids.isEmpty()) return
+    /**
+     * Turns a `climate` entity on or off via its HVAC mode. "On" is the first non-off mode the
+     * entity lists in `hvac_modes` (e.g. "heat", "fan_only"), which works for any thermostat-style
+     * entity whether or not it supports climate.turn_on.
+     */
+    fun setClimateOn(entityId: String, on: Boolean) {
+        val current = latest.value.states[entityId] ?: return
+        val mode = if (on) current.firstActiveHvacMode() ?: return else "off"
         // Optimistic: flip locally so the toggle responds instantly; the next poll corrects it
-        latest.update { snap ->
-            snap.copy(states = snap.states + ids.mapNotNull { id ->
-                snap.states[id]?.let { id to it.copy(state = if (on) "on" else "off") }
-            })
-        }
-        call("homeassistant", if (on) "turn_on" else "turn_off", mapOf("entity_id" to ids))
+        latest.update { snap -> snap.copy(states = snap.states + (entityId to current.copy(state = mode))) }
+        call("climate", "set_hvac_mode", mapOf("entity_id" to entityId, "hvac_mode" to mode))
     }
 
     fun setTemperature(climateEntity: String, temperature: Double) {

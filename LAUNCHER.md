@@ -10,9 +10,8 @@ Same stack as the player: Kotlin, Compose for TV (`tv-material`), Hilt, DataStor
 
 | Screen | Reached by | Notes |
 |---|---|---|
-| **Home** | Opening Sunset from the apps row | Live TV · NostalgiaTV · Movies (top row); Music · Apps · Spa (bottom row); Lights + Settings tray |
-| **Spa** | Spa tile | Water temp + status, target temp (focus the card, ◀ ▶ to adjust), Jets 1/2, Lights, Waterfall, Start/Stop jets |
-| **Lights** | 💡 tray button | Every `light.*` entity in Home Assistant as a toggle, plus All off |
+| **Home** | Opening Sunset from the apps row | Live TV · NostalgiaTV · Movies (top row); Music · Apps · Spa (bottom row); Settings button |
+| **Spa** | Spa tile | Water temp + status, target temp (focus the card, ◀ ▶ to adjust), Bubbles on/off |
 | **Apps** | Apps tile | All installed TV apps (banners), OK launches |
 | **App picker** | Hold OK on an app tile, or Launcher settings → Tiles | Chooses which app a tile opens (or None) |
 | **Launcher settings** | Hold the ⚙ button, or Menu on Home | Home Assistant URL/token, entity ids, tile apps |
@@ -21,21 +20,19 @@ Same stack as the player: Kotlin, Compose for TV (`tv-material`), Hilt, DataStor
 
 Tiles that open apps (all configurable): **Live TV** → `com.iptvplayer.app` by default; **NostalgiaTV**, **Movies**, **Music** → unset until chosen (OK on an unset tile opens the picker).
 
-The Pool tile, the room-service / camera / fan tray icons and the palm logo from the mockup are intentionally left out; the header logo and app banner are a sunset.
+The Pool tile, the jets/lights/waterfall controls, the Lights screen, the room-service / camera / fan / bulb tray icons and the palm logo from the mockup are intentionally left out (lights are quicker by voice); the header logo and app banner are a sunset.
 
 ## Home Assistant
 
 - REST API with a long-lived access token (HA profile → Security). Polls `/api/states` every 5s, only while a launcher screen is visible.
-- Toggles call `homeassistant.turn_on/turn_off` (works for `switch`, `light`, `fan`, `input_boolean`); target temp calls `climate.set_temperature` 0.8s after the last ◀/▶ press.
-- Default entity ids — change them in Launcher settings to match your setup:
+- Bubbles is a `climate` entity: off = HVAC mode `off`, on = the first other mode in its `hvac_modes`; toggled with `climate.set_hvac_mode`. Target temp calls `climate.set_temperature` 0.8s after the last ◀/▶ press.
+- Entity ids are built in for this home; Launcher settings can override them (a cleared field returns to the default):
 
 | Purpose | Default |
 |---|---|
 | Spa thermostat (water + target temp) | `climate.spa` (`current_temperature`, `temperature`, `min_temp`/`max_temp`, `target_temp_step`) |
-| Jets 1 / Jets 2 | `switch.spa_jets_1` / `switch.spa_jets_2` |
-| Spa lights | `light.spa` |
-| Waterfall | `switch.spa_waterfall` |
-| Header weather | `weather.home` (`temperature` attribute + state → icon) |
+| Spa bubbles | `climate.spa_bubbles` |
+| Header weather | `weather.forecast_home` (`temperature` attribute + state → icon) |
 
 - Typing a ~180-character token with a remote is painful: open the field, then paste from the **Google TV app on your phone** (its remote has a keyboard that accepts paste).
 - `usesCleartextTraffic` is on so `http://homeassistant.local:8123` works.
@@ -72,7 +69,7 @@ Once Sunset is the default home, Back on its home screen is swallowed automatica
 
 ## Phases
 
-### ✅ L1 — Home, Spa, Lights, Apps, settings — as a regular app
+### ✅ L1 — Home, Spa, Apps, settings — as a regular app
 Code complete; **not yet built** (dev sandbox can't reach Google Maven). Pure logic (spa status, weather mapping, URL normalization) has JVM unit tests.
 
 ### 🔲 L2 — On-device pass

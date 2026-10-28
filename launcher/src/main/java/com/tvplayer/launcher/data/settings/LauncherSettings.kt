@@ -2,6 +2,7 @@ package com.tvplayer.launcher.data.settings
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -35,11 +36,8 @@ data class HomeAssistantConfig(
 /** Home Assistant entity ids behind the Spa tile/screen and the header weather. */
 data class EntityConfig(
     val spaClimate: String = "climate.spa",
-    val spaJets1: String = "switch.spa_jets_1",
-    val spaJets2: String = "switch.spa_jets_2",
-    val spaLights: String = "light.spa",
-    val spaWaterfall: String = "switch.spa_waterfall",
-    val weather: String = "weather.home",
+    val spaBubbles: String = "climate.spa_bubbles",
+    val weather: String = "weather.forecast_home",
 )
 
 data class LauncherConfig(
@@ -56,12 +54,15 @@ class LauncherSettingsStore @Inject constructor(
 
     private val KEY_HA_URL   = stringPreferencesKey("ha_url")
     private val KEY_HA_TOKEN = stringPreferencesKey("ha_token")
-    private val KEY_SPA_CLIMATE   = stringPreferencesKey("entity_spa_climate")
-    private val KEY_SPA_JETS_1    = stringPreferencesKey("entity_spa_jets_1")
-    private val KEY_SPA_JETS_2    = stringPreferencesKey("entity_spa_jets_2")
-    private val KEY_SPA_LIGHTS    = stringPreferencesKey("entity_spa_lights")
-    private val KEY_SPA_WATERFALL = stringPreferencesKey("entity_spa_waterfall")
-    private val KEY_WEATHER       = stringPreferencesKey("entity_weather")
+    // v2 keys hold only values that differ from EntityConfig's defaults, so changing a default
+    // in a new build reaches devices that never customised it. v1 stored every field.
+    private val KEY_SPA_CLIMATE = stringPreferencesKey("entity_v2_spa_climate")
+    private val KEY_SPA_BUBBLES = stringPreferencesKey("entity_v2_spa_bubbles")
+    private val KEY_WEATHER     = stringPreferencesKey("entity_v2_weather")
+    private val LEGACY_ENTITY_KEYS = listOf(
+        "entity_spa_climate", "entity_spa_jets_1", "entity_spa_jets_2",
+        "entity_spa_lights", "entity_spa_waterfall", "entity_weather",
+    ).map { stringPreferencesKey(it) }
 
     private fun tileKey(tile: AppTile) = stringPreferencesKey("tile_app_${tile.name.lowercase()}")
 
@@ -73,12 +74,9 @@ class LauncherSettingsStore @Inject constructor(
                 token = prefs[KEY_HA_TOKEN] ?: "",
             ),
             entities = EntityConfig(
-                spaClimate   = prefs[KEY_SPA_CLIMATE] ?: defaults.spaClimate,
-                spaJets1     = prefs[KEY_SPA_JETS_1] ?: defaults.spaJets1,
-                spaJets2     = prefs[KEY_SPA_JETS_2] ?: defaults.spaJets2,
-                spaLights    = prefs[KEY_SPA_LIGHTS] ?: defaults.spaLights,
-                spaWaterfall = prefs[KEY_SPA_WATERFALL] ?: defaults.spaWaterfall,
-                weather      = prefs[KEY_WEATHER] ?: defaults.weather,
+                spaClimate = prefs[KEY_SPA_CLIMATE] ?: defaults.spaClimate,
+                spaBubbles = prefs[KEY_SPA_BUBBLES] ?: defaults.spaBubbles,
+                weather    = prefs[KEY_WEATHER] ?: defaults.weather,
             ),
             // An empty string means "explicitly none"; missing means "use the default"
             tileApps = AppTile.entries.associateWith { tile ->
@@ -91,13 +89,18 @@ class LauncherSettingsStore @Inject constructor(
         store.edit { prefs ->
             prefs[KEY_HA_URL]   = normalizeBaseUrl(baseUrl)
             prefs[KEY_HA_TOKEN] = token.trim()
-            prefs[KEY_SPA_CLIMATE]   = entities.spaClimate.trim()
-            prefs[KEY_SPA_JETS_1]    = entities.spaJets1.trim()
-            prefs[KEY_SPA_JETS_2]    = entities.spaJets2.trim()
-            prefs[KEY_SPA_LIGHTS]    = entities.spaLights.trim()
-            prefs[KEY_SPA_WATERFALL] = entities.spaWaterfall.trim()
-            prefs[KEY_WEATHER]       = entities.weather.trim()
+            val defaults = EntityConfig()
+            prefs.putUnlessDefault(KEY_SPA_CLIMATE, entities.spaClimate, defaults.spaClimate)
+            prefs.putUnlessDefault(KEY_SPA_BUBBLES, entities.spaBubbles, defaults.spaBubbles)
+            prefs.putUnlessDefault(KEY_WEATHER, entities.weather, defaults.weather)
+            LEGACY_ENTITY_KEYS.forEach { prefs.remove(it) }
         }
+    }
+
+    /** Blank or default → remove the key, so the built-in default applies. */
+    private fun MutablePreferences.putUnlessDefault(key: Preferences.Key<String>, value: String, default: String) {
+        val trimmed = value.trim()
+        if (trimmed.isEmpty() || trimmed == default) remove(key) else this[key] = trimmed
     }
 
     suspend fun setTileApp(tile: AppTile, packageName: String?) {

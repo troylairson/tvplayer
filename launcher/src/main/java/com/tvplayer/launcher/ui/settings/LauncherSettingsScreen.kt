@@ -66,10 +66,7 @@ private fun SettingsForm(
     var url by remember { mutableStateOf(initial.homeAssistant.baseUrl) }
     var token by remember { mutableStateOf(initial.homeAssistant.token) }
     var spaClimate by remember { mutableStateOf(initial.entities.spaClimate) }
-    var jets1 by remember { mutableStateOf(initial.entities.spaJets1) }
-    var jets2 by remember { mutableStateOf(initial.entities.spaJets2) }
-    var spaLights by remember { mutableStateOf(initial.entities.spaLights) }
-    var waterfall by remember { mutableStateOf(initial.entities.spaWaterfall) }
+    var spaBubbles by remember { mutableStateOf(initial.entities.spaBubbles) }
     var weather by remember { mutableStateOf(initial.entities.weather) }
 
     Row(
@@ -90,22 +87,20 @@ private fun SettingsForm(
             )
 
             SectionTitle("Entities")
-            Field("Spa thermostat (climate)", spaClimate, { spaClimate = it })
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Field("Jets 1", jets1, { jets1 = it }, Modifier.weight(1f))
-                Field("Jets 2", jets2, { jets2 = it }, Modifier.weight(1f))
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Field("Spa lights", spaLights, { spaLights = it }, Modifier.weight(1f))
-                Field("Waterfall", waterfall, { waterfall = it }, Modifier.weight(1f))
-            }
+            Field("Spa thermostat", spaClimate, { spaClimate = it })
+            Field("Spa bubbles", spaBubbles, { spaBubbles = it })
             Field("Weather (header)", weather, { weather = it })
+            Text(
+                text = "Pre-filled with this home's entities. Clear a field to restore its default.",
+                fontSize = 13.sp,
+                color = CreamMuted,
+            )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = {
                     viewModel.saveHomeAssistant(
                         url, token,
-                        EntityConfig(spaClimate, jets1, jets2, spaLights, waterfall, weather),
+                        EntityConfig(spaClimate = spaClimate, spaBubbles = spaBubbles, weather = weather),
                     )
                 }) { Text("Save & test") }
                 Spacer(Modifier.width(18.dp))

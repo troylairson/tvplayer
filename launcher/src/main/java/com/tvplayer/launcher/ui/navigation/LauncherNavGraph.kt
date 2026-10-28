@@ -15,7 +15,6 @@ import com.tvplayer.launcher.data.settings.AppTile
 import com.tvplayer.launcher.ui.apps.AppPickerScreen
 import com.tvplayer.launcher.ui.apps.AppsScreen
 import com.tvplayer.launcher.ui.home.HomeScreen
-import com.tvplayer.launcher.ui.lights.LightsScreen
 import com.tvplayer.launcher.ui.settings.LauncherSettingsScreen
 import com.tvplayer.launcher.ui.spa.SpaScreen
 import com.tvplayer.launcher.ui.theme.Ink
@@ -23,7 +22,6 @@ import com.tvplayer.launcher.ui.theme.Ink
 private object Routes {
     const val HOME = "home"
     const val SPA = "spa"
-    const val LIGHTS = "lights"
     const val APPS = "apps"
     const val SETTINGS = "settings"
     const val PICKER = "picker/{tile}"
@@ -48,7 +46,6 @@ fun LauncherNavGraph(homePresses: Int, isDefaultHome: Boolean) {
                 HomeScreen(
                     isDefaultHome = isDefaultHome,
                     onOpenSpa = { navController.navigate(Routes.SPA) },
-                    onOpenLights = { navController.navigate(Routes.LIGHTS) },
                     onOpenApps = { navController.navigate(Routes.APPS) },
                     onOpenLauncherSettings = { navController.navigate(Routes.SETTINGS) },
                     onPickApp = { tile -> navController.navigate(Routes.picker(tile)) },
@@ -56,9 +53,6 @@ fun LauncherNavGraph(homePresses: Int, isDefaultHome: Boolean) {
             }
             composable(Routes.SPA) {
                 SpaScreen(onOpenLauncherSettings = { navController.navigate(Routes.SETTINGS) })
-            }
-            composable(Routes.LIGHTS) {
-                LightsScreen(onOpenLauncherSettings = { navController.navigate(Routes.SETTINGS) })
             }
             composable(Routes.APPS) {
                 AppsScreen()

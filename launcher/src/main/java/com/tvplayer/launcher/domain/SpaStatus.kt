@@ -19,7 +19,7 @@ data class SpaReading(
     val targetTemp: Double?,
     /** climate entity state: "heat", "off", "auto", … */
     val hvacMode: String?,
-    val jetsOn: Boolean,
+    val bubblesOn: Boolean,
 ) {
     val waterState: WaterState get() = when {
         waterTemp == null -> WaterState.UNKNOWN
@@ -34,7 +34,7 @@ data class SpaReading(
     val summary: String get() {
         val temp = waterTemp?.let { "${it.roundToInt()}°" } ?: "--°"
         val status = when {
-            jetsOn -> "Jets on"
+            bubblesOn -> "Bubbles on"
             waterState == WaterState.AT_TEMPERATURE -> "Ready"
             waterState == WaterState.UNKNOWN -> "Offline"
             else -> waterState.label
