@@ -1,4 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="#1A1A2E" />
-</shape>
+<!-- 320×180 TV banner: a traditional wood-cabinet TV set with rabbit-ear antennas -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="180dp"
+    android:viewportWidth="320"
+    android:viewportHeight="180">
+    <path android:fillColor="#12122E" android:pathData="M0,0h320v180h-320z" />
+    <!-- Antennas -->
+    <path android:strokeColor="#D1D5DB" android:strokeWidth="4" android:strokeLineCap="round"
+        android:pathData="M160,44 L128,14 M160,44 L194,12" />
+    <path android:fillColor="#D1D5DB" android:pathData="M152,40h16v8h-16z" />
+    <!-- Cabinet -->
+    <path android:fillColor="#B7793F"
+        android:pathData="M96,48h128a12,12 0 0 1 12,12v76a12,12 0 0 1 -12,12h-128a12,12 0 0 1 -12,-12v-76a12,12 0 0 1 12,-12z" />
+    <!-- Bezel, screen, glare -->
+    <path android:fillColor="#3A2A1C"
+        android:pathData="M100,58h88a8,8 0 0 1 8,8v60a8,8 0 0 1 -8,8h-88a8,8 0 0 1 -8,-8v-60a8,8 0 0 1 8,-8z" />
+    <path android:fillColor="#22D3EE"
+        android:pathData="M106,64h76a6,6 0 0 1 6,6v52a6,6 0 0 1 -6,6h-76a6,6 0 0 1 -6,-6v-52a6,6 0 0 1 6,-6z" />
+    <path android:fillColor="#A5F3FC" android:fillAlpha="0.55" android:pathData="M110,68h30l-14,20h-16z" />
+    <!-- Knobs and speaker grille -->
+    <path android:fillColor="#3A2A1C" android:pathData="M207,74a9,9 0 1 0 18,0a9,9 0 1 0 -18,0z" />
+    <path android:fillColor="#3A2A1C" android:pathData="M207,100a9,9 0 1 0 18,0a9,9 0 1 0 -18,0z" />
+    <path android:fillColor="#3A2A1C" android:pathData="M206,116h20v3h-20z M206,122h20v3h-20z M206,128h20v3h-20z" />
+    <!-- Legs -->
+    <path android:fillColor="#3A2A1C" android:pathData="M108,148h10l-4,14h-8z M202,148h10l2,14h-8z" />
+</vector>

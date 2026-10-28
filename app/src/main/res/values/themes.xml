@@ -5,4 +5,5 @@
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">true</item>
     </style>
+    <color name="icon_background">#FF12122E</color>
 </resources>
