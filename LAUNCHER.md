@@ -49,6 +49,8 @@ GitHub Actions (`.github/workflows/build.yml`) builds both apps and runs the uni
 
 Type one into **Downloader** on the TV and install. To update later, download the same link again.
 
+These are optimized (R8) release builds. Each release also has `sunset-debug.apk` and `iptv-player-debug.apk`: unoptimized and noticeably slower, but a fallback if the optimizer ever breaks something. Swap `sunset.apk` for `sunset-debug.apk` in the link to get one.
+
 **One-time signing setup:** run `scripts/create-signing-key.sh` on a computer and add the four secrets it prints under the repo's *Settings → Secrets and variables → Actions*. Keep the `.keystore` file it creates. Until the secrets exist, each build is signed with a throwaway key, so updating means uninstalling first (which clears the app's settings).
 
 ## Running as a regular app (current)
