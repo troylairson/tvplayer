@@ -5,8 +5,8 @@ import org.junit.Test
 
 class LauncherLogicTest {
 
-    private fun reading(water: Double?, target: Double?, mode: String? = "heat", jets: Boolean = false) =
-        SpaReading(water, target, mode, jets)
+    private fun reading(water: Double?, target: Double?, mode: String? = "heat", bubbles: Boolean = false) =
+        SpaReading(water, target, mode, bubbles)
 
     @Test
     fun `water state`() {
@@ -22,7 +22,7 @@ class LauncherLogicTest {
     fun `tile summary`() {
         assertEquals("104° · Ready", reading(104.2, 104.0).summary)
         assertEquals("98° · Heating", reading(98.0, 104.0).summary)
-        assertEquals("104° · Jets on", reading(104.0, 104.0, jets = true).summary)
+        assertEquals("104° · Bubbles on", reading(104.0, 104.0, bubbles = true).summary)
         assertEquals("--° · Offline", reading(null, null).summary)
     }
 

@@ -4,7 +4,8 @@ name: Build APKs
 # Pushes to main also publish a GitHub Release, so the newest APKs are always at
 #   https://github.com/troylairson/tvplayer/releases/latest/download/iptv-player.apk
 #   https://github.com/troylairson/tvplayer/releases/latest/download/sunset.apk
-# (type either into Downloader on the TV).
+# (type either into Downloader on the TV). Those are optimized release builds; the
+# *-debug.apk files next to them are unoptimized fallbacks in case R8 shrinking breaks something.
 
 on:
   push:
@@ -48,19 +49,26 @@ jobs:
             echo "::warning::SIGNING_KEYSTORE_BASE64 secret not set; APKs use a throwaway debug key"
           fi
 
-      # Debug builds for now: no R8 shrinking to trip over while the apps are being shaken out
+      # Release (R8-optimized, much faster on TV hardware) plus debug as a fallback
       - name: Build and test
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: ./gradlew :app:assembleDebug :launcher:assembleDebug :app:testDebugUnitTest :launcher:testDebugUnitTest --stacktrace
+        run: >
+          ./gradlew
+          :app:assembleRelease :launcher:assembleRelease
+          :app:assembleDebug :launcher:assembleDebug
+          :app:testDebugUnitTest :launcher:testDebugUnitTest
+          --stacktrace
 
       - name: Collect APKs
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/iptv-player.apk
-          cp launcher/build/outputs/apk/debug/launcher-debug.apk dist/sunset.apk
+          cp app/build/outputs/apk/release/app-release.apk dist/iptv-player.apk
+          cp launcher/build/outputs/apk/release/launcher-release.apk dist/sunset.apk
+          cp app/build/outputs/apk/debug/app-debug.apk dist/iptv-player-debug.apk
+          cp launcher/build/outputs/apk/debug/launcher-debug.apk dist/sunset-debug.apk
           rm -f "$SIGNING_STORE_FILE"
 
       - uses: actions/upload-artifact@v4
@@ -81,8 +89,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "build-${{ github.run_number }}" dist/iptv-player.apk dist/sunset.apk \
+          gh release create "build-${{ github.run_number }}" dist/*.apk \
             --target "${{ github.sha }}" \
             --title "Build ${{ github.run_number }}" \
-            --notes "Built from ${{ github.sha }}. Version 1.0.${{ github.run_number }} of IPTV Player and Sunset." \
+            --notes "Built from ${{ github.sha }}. Version 1.0.${{ github.run_number }} of IPTV Player and Sunset. The -debug APKs are unoptimized fallbacks." \
             --latest

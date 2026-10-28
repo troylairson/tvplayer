@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text as FieldText
 import androidx.tv.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -65,11 +66,13 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(8.dp))
 
+            // Labels inside text fields must be the mobile M3 Text: it takes the field's label
+            // color, while TV Text ignores it and renders black on the dark background
             OutlinedTextField(
                 value = serverUrl,
                 onValueChange = { serverUrl = it; viewModel.resetState() },
-                label = { Text("Server URL") },
-                placeholder = { Text("http://your-provider.com:8080") },
+                label = { FieldText("Server URL") },
+                placeholder = { FieldText("http://your-provider.com:8080") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
@@ -81,7 +84,7 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it; viewModel.resetState() },
-                label = { Text("Username") },
+                label = { FieldText("Username") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth(),
@@ -90,7 +93,7 @@ fun SettingsScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it; viewModel.resetState() },
-                label = { Text("Password") },
+                label = { FieldText("Password") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(

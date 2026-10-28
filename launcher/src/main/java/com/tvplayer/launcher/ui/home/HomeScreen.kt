@@ -3,7 +3,6 @@ package com.tvplayer.launcher.ui.home
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -28,13 +27,12 @@ import com.tvplayer.launcher.ui.components.TrayButton
 import com.tvplayer.launcher.ui.theme.*
 import kotlinx.coroutines.launch
 
-private enum class HomeItem { LIVE_TV, NOSTALGIA, MOVIES, MUSIC, APPS, SPA, LIGHTS, SETTINGS }
+private enum class HomeItem { LIVE_TV, NOSTALGIA, MOVIES, MUSIC, APPS, SPA, SETTINGS }
 
 @Composable
 fun HomeScreen(
     isDefaultHome: Boolean,
     onOpenSpa: () -> Unit,
-    onOpenLights: () -> Unit,
     onOpenApps: () -> Unit,
     onOpenLauncherSettings: () -> Unit,
     onPickApp: (AppTile) -> Unit,
@@ -145,12 +143,6 @@ fun HomeScreen(
             modifier = Modifier.align(androidx.compose.ui.Alignment.End),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            TrayButton(
-                icon = Icons.Outlined.Lightbulb,
-                contentDescription = "Lights",
-                onClick = onOpenLights,
-                modifier = Modifier.homeItem(HomeItem.LIGHTS),
-            )
             TrayButton(
                 icon = Icons.Outlined.Settings,
                 contentDescription = "Settings",

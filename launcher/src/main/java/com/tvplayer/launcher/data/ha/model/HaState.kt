@@ -10,8 +10,13 @@ data class HaState(
     val attributes: Map<String, Any?> = emptyMap(),
 ) {
     val domain: String get() = entityId.substringBefore('.')
-    val isOn: Boolean get() = state == "on"
     val isAvailable: Boolean get() = state != "unavailable" && state != "unknown"
+
+    /** For `climate` entities, whose state is the HVAC mode ("off", "heat", …) rather than on/off. */
+    val isClimateOn: Boolean get() = isAvailable && state != "off"
+
+    fun firstActiveHvacMode(): String? =
+        (attributes["hvac_modes"] as? List<*>)?.filterIsInstance<String>()?.firstOrNull { it != "off" }
     val friendlyName: String get() = attributes["friendly_name"] as? String ?: entityId
 
     /** Moshi decodes JSON numbers as Double. */

@@ -7,10 +7,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BubbleChart
-import androidx.compose.material.icons.outlined.Lightbulb
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Stop
-import androidx.compose.material.icons.outlined.Waves
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,7 +27,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.Icon
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
@@ -79,22 +74,19 @@ fun SpaScreen(
                     onAdjust = viewModel::adjustTarget,
                     modifier = Modifier.fillMaxWidth().weight(1f).focusRequester(firstFocus),
                 )
-                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    SpaToggle(Icons.Outlined.BubbleChart, "Jets 1", state.jets1, viewModel::toggle,
-                        Modifier.weight(1f).fillMaxHeight())
-                    SpaToggle(Icons.Outlined.BubbleChart, "Jets 2", state.jets2, viewModel::toggle,
-                        Modifier.weight(1f).fillMaxHeight())
-                }
-                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    SpaToggle(Icons.Outlined.Lightbulb, "Lights", state.lights, viewModel::toggle,
-                        Modifier.weight(1f).fillMaxHeight())
-                    SpaToggle(Icons.Outlined.Waves, "Waterfall", state.waterfall, viewModel::toggle,
-                        Modifier.weight(1f).fillMaxHeight())
-                }
-                JetsButton(
-                    jetsOn = state.reading.jetsOn,
-                    onClick = viewModel::toggleAllJets,
-                    modifier = Modifier.fillMaxWidth().weight(0.72f),
+                val bubbles = state.bubbles
+                ToggleCard(
+                    icon = Icons.Outlined.BubbleChart,
+                    label = "Bubbles",
+                    isOn = bubbles?.isOn == true,
+                    onToggle = viewModel::toggleBubbles,
+                    enabled = bubbles?.available == true,
+                    detail = when {
+                        bubbles == null || !bubbles.available -> "Unavailable"
+                        bubbles.isOn -> bubbles.modeLabel ?: "On"
+                        else -> null
+                    },
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                 )
             }
         }
@@ -200,60 +192,6 @@ private fun TargetCard(
                 text = target?.let { "${it.roundToInt()}°" } ?: "--°",
                 style = MaterialTheme.typography.displayMedium,
             )
-        }
-    }
-}
-
-@Composable
-private fun SpaToggle(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    control: SpaControl?,
-    onToggle: (SpaControl) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    ToggleCard(
-        icon = icon,
-        label = label,
-        isOn = control?.isOn == true,
-        onToggle = { control?.let(onToggle) },
-        enabled = control?.available == true,
-        detail = if (control?.available == true) null else "Unavailable",
-        modifier = modifier,
-    )
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun JetsButton(jetsOn: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(10.dp)
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = ClickableSurfaceDefaults.shape(shape = shape),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = InkRaised,
-            contentColor = Cream,
-            focusedContainerColor = Cream,
-            focusedContentColor = Ink,
-        ),
-        border = ClickableSurfaceDefaults.border(
-            border = Border(BorderStroke(1.dp, InkBorder), shape = shape),
-        ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = if (jetsOn) Icons.Outlined.Stop else Icons.Outlined.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(28.dp),
-            )
-            Spacer(Modifier.width(12.dp))
-            Text(text = if (jetsOn) "Stop jets" else "Start jets", fontSize = 21.sp)
         }
     }
 }

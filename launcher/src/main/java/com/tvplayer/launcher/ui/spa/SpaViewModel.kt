@@ -28,15 +28,17 @@ fun HaSnapshot.spaReading(entities: EntityConfig): SpaReading {
         waterTemp = climate?.number("current_temperature"),
         targetTemp = climate?.number("temperature"),
         hvacMode = climate?.state,
-        jetsOn = this[entities.spaJets1]?.isOn == true || this[entities.spaJets2]?.isOn == true,
+        bubblesOn = this[entities.spaBubbles]?.isClimateOn == true,
     )
 }
 
 data class SpaControl(
     val entityId: String,
     val isOn: Boolean,
-    /** false when the entity is missing from HA or unavailable. */
+    /** false when the entity is missing from HA, unavailable, or has no "on" mode to switch to. */
     val available: Boolean,
+    /** Current HVAC mode when on, e.g. "Fan only". */
+    val modeLabel: String?,
 )
 
 data class SpaState(
@@ -44,10 +46,7 @@ data class SpaState(
     val reading: SpaReading = SpaReading(null, null, null, false),
     /** Target shown on screen — includes D-pad adjustments not yet sent to HA. */
     val displayTarget: Double? = null,
-    val jets1: SpaControl? = null,
-    val jets2: SpaControl? = null,
-    val lights: SpaControl? = null,
-    val waterfall: SpaControl? = null,
+    val bubbles: SpaControl? = null,
 )
 
 @HiltViewModel
@@ -62,32 +61,24 @@ class SpaViewModel @Inject constructor(
 
     val state: StateFlow<SpaState> = combine(ha.snapshot, settings.config, pendingTarget) { snapshot, config, pending ->
         val entities = config.entities
-        fun control(id: String) = SpaControl(
-            entityId = id,
-            isOn = snapshot[id]?.isOn == true,
-            available = snapshot[id]?.isAvailable == true,
-        )
+        val bubbles = snapshot[entities.spaBubbles]
         val reading = snapshot.spaReading(entities)
         SpaState(
             status = snapshot.status,
             reading = reading,
             displayTarget = pending ?: reading.targetTemp,
-            jets1 = control(entities.spaJets1),
-            jets2 = control(entities.spaJets2),
-            lights = control(entities.spaLights),
-            waterfall = control(entities.spaWaterfall),
+            bubbles = SpaControl(
+                entityId = entities.spaBubbles,
+                isOn = bubbles?.isClimateOn == true,
+                available = bubbles != null && bubbles.isAvailable && bubbles.firstActiveHvacMode() != null,
+                modeLabel = bubbles?.takeIf { it.isClimateOn }?.state?.let(::hvacModeLabel),
+            ),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SpaState())
 
-    fun toggle(control: SpaControl) {
-        ha.setOn(listOf(control.entityId), !control.isOn)
-    }
-
-    /** "Start jets" / "Stop jets": both jets together. */
-    fun toggleAllJets() {
-        val s = state.value
-        val ids = listOfNotNull(s.jets1?.entityId, s.jets2?.entityId)
-        ha.setOn(ids, on = !s.reading.jetsOn)
+    fun toggleBubbles() {
+        val bubbles = state.value.bubbles ?: return
+        ha.setClimateOn(bubbles.entityId, on = !bubbles.isOn)
     }
 
     fun adjustTarget(direction: Int) {
@@ -109,3 +100,7 @@ class SpaViewModel @Inject constructor(
         }
     }
 }
+
+/** "fan_only" → "Fan only" */
+private fun hvacModeLabel(mode: String): String =
+    mode.replace('_', ' ').replaceFirstChar { it.uppercase() }
